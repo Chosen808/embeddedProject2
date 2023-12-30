@@ -24,7 +24,8 @@
 include sources.mk
 
 # Platform Overrides
-PLATFORM = MSP432
+PLATFORM_NATIVE = HOST
+PLATFORM_CROSS = MSP432
 
 # Architectures Specific Flags
 LINKER_FILE = "$(LDS)"
@@ -35,12 +36,14 @@ CSTD = c99
 
 # Compiler Flags and Defines
 CC = arm-none-eabi-gcc
+CCHOST = gcc
 LD = arm-none-eabi-ld
 BASENAME = c1m2
 TARGET = $(BASENAME).out
 MAP = $(BASENAME).map
 LDFLAGS = -Wl,-Map=$(MAP)
-CFLAGS = -mcpu=$(CPU) -m$(ARCH) --specs=$(SPECS) -D$(PLATFORM)
+CFLAGS = -mcpu=$(CPU) -m$(ARCH) --specs=$(SPECS) -D$(PLATFORM_CROSS)
+CFLAGS_HOST = -Wall -g -D$(PLATFORM_NATIVE)
 CPPFLAGS = -E
 
 #Files
@@ -53,10 +56,19 @@ DEP = main.d memory.d interrupts_msp432p401r_gcc.d startup_msp432p401r_gcc.d sys
 # This PHONY of build was created to prevent any errors that may occur if there is a file \
 named build
 .PHONY : build
-# The executable will be compiled here
+# The cross comipled executable will be compiled here
 build : $(OBJ) 
-	$(CC) -v $(INCLUDES) -T$(LINKER_FILE) $(OBJ) $(CFLAGS) -o $(TARGET) 
+	$(CC) $(INCLUDES) -T$(LINKER_FILE) $(OBJ) $(CFLAGS) -o $(TARGET) 
 	size $(TARGET) $(OBJ)
+
+
+# This PHONY of host-build was created to prevent any errors that may occur if there is a file \
+name host-build
+.PHONY : host-build
+# The host compiled executable will be compiled here
+host-build : main.c memory.c 
+	$(CCHOST) $(INCLUDES) main.c memory.c $(CFLAGS_HOST) -o $(TARGET)
+	size $(TARGET)
 
 
 # This PHONY of address-map was created to prevent any eror that may occur if there is a file \

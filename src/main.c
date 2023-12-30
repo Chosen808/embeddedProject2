@@ -22,7 +22,6 @@
  */
 #include "platform.h"
 #include "memory.h"
-#include <stdio.h>
 
 #define MAX_LENGTH (10)
 char buffer[MAX_LENGTH];
