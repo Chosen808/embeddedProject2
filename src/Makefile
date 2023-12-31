@@ -10,22 +10,30 @@
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
-# <Put a Description Here>
+# Simple makefile for the cortex-M4 build system
 #
-# Use: make [TARGET] [PLATFORM-OVERRIDES]
+# Use: make [TARGET] [PLATFORM-OVERRIDES] (PLATFORM=MSP432/ PLATFORM=HOST)
 #
 # Build Targets:
-#      <Put a description of the supported targets here>
+#      build - Will build executable
+#	   address-map - Will build c1m2.map file
+#	   <FILE.o> - Will build object files
+#	   compile-all - Will build all object file
+#	   <FILE>.i - Will build preproccessor files
+#	   <FILE>.asm - WIll build assembly files
+#	   <FILE>.d - WIll build dependency files
+#	   clean - removes all generated files
 #
 # Platform Overrides:
-#      <Put a description of the supported Overrides here
+#      CPU - ARM Cortex Architecture (cortex-m4)
+#	   ARCH - ARM Architecture (arm, thumb)
+#	   SPECS - Specs file to give the linker (nosys.specs)
 #
 #------------------------------------------------------------------------------
 include sources.mk
 
 # Platform Overrides
-PLATFORM_NATIVE = HOST
-PLATFORM_CROSS = MSP432
+PLATFORM = MSP432
 
 # Architectures Specific Flags
 LINKER_FILE = "$(LDS)"
@@ -36,14 +44,12 @@ CSTD = c99
 
 # Compiler Flags and Defines
 CC = arm-none-eabi-gcc
-CCHOST = gcc
 LD = arm-none-eabi-ld
 BASENAME = c1m2
 TARGET = $(BASENAME).out
 MAP = $(BASENAME).map
 LDFLAGS = -Wl,-Map=$(MAP)
-CFLAGS = -mcpu=$(CPU) -m$(ARCH) --specs=$(SPECS) -D$(PLATFORM_CROSS)
-CFLAGS_HOST = -Wall -g -D$(PLATFORM_NATIVE)
+CFLAGS = -mcpu=$(CPU) -m$(ARCH) --specs=$(SPECS) -D$(PLATFORM)
 CPPFLAGS = -E
 
 #Files
@@ -52,7 +58,7 @@ PP = main.i memory.i interrupts_msp432p401r_gcc.i startup_msp432p401r_gcc.i syst
 ASM = main.asm memory.asm interrupts_msp432p401r_gcc.asm startup_msp432p401r_gcc.asm system_msp432p401r.asm
 DEP = main.d memory.d interrupts_msp432p401r_gcc.d startup_msp432p401r_gcc.d system_msp432p401r.d 
 
-
+ifeq ($(PLATFORM),MSP432)
 # This PHONY of build was created to prevent any errors that may occur if there is a file \
 named build
 .PHONY : build
@@ -62,24 +68,32 @@ build : $(OBJ)
 	size $(TARGET) $(OBJ)
 
 
-# This PHONY of host-build was created to prevent any errors that may occur if there is a file \
-name host-build
-.PHONY : host-build
+else
 # The host compiled executable will be compiled here
-host-build : main.c memory.c 
-	$(CCHOST) $(INCLUDES) main.c memory.c $(CFLAGS_HOST) -o $(TARGET)
+build : main.c memory.c 
+	gcc -Wall -g -DHOST $(INCLUDES) main.c memory.c -o $(TARGET)
 	size $(TARGET)
+endif
 
 
 # This PHONY of address-map was created to prevent any eror that may occur if there is a file \
 name address-map
 .PHONY : address-map 
+
+ifeq ($(PLATFORM),MSP432)
 # This will make the c1m2.map file
 address-map : $(OBJ)
 	$(CC) $(INCLUDES) $(LDFLAGS) $(OBJ)
 
+else
+# This will make the c1m2.map file
+address-map : main.o memory.o
+	gcc $(INCLUDES) $(LDFLAGS) main.o memory.o
+endif
 
-# Object files will be compiled preceeding this comment
+
+ifeq ($(PLATFORM),MSP432)
+# Object files for MSP432 will be compiled preceeding this comment
 main.o : main.c
 	$(CC) $(INCLUDES) -c -v main.c
 
@@ -95,16 +109,33 @@ startup_msp432p401r_gcc.o : startup_msp432p401r_gcc.c
 system_msp432p401r.o : system_msp432p401r.c
 	$(CC) $(INCLUDES) -c system_msp432p401r.c 
 
+else
+# Object files for HOST will be compiled preceeding this comment
+main.o : main.c
+	gcc $(INCLUDES) -c -v main.c
+
+memory.o : memory.c
+	gcc $(INCLUDES) -c memory.c
+endif
+
 
 # This PHONY of compile-all was create to prevent any errors that may occur if there is a file \
 name compile-all
 .PHONY : compile-all
-# This will compile all source files in object file
+
+ifeq ($(PLATFORM),MSP432)
+# This will compile all source files into object files for MSP432
 compile-all : $(SOURCES)
 	$(CC) $(INCLUDES) -c -mcpu=$(CPU) $(SOURCES)
 
+else
+# This will compile all source files into object file for HOST
+compile-all : $(SOURCES)
+	gcc $(INCLUDES) -c main.c memory.c
+endif
 
-# Preprocessor file will be generated preceeding this comment
+ifeq ($(PLATFORM), MSP432)
+# Preprocessor files will be generated for MSP432 preceeding this comment
 main.i : main.c 
 	$(CC) $(INCLUDES) -E main.c -o main.i
 
@@ -120,8 +151,26 @@ startup_msp432p401r_gcc.i : startup_msp432p401r_gcc.c
 system_msp432p401r.i : system_msp432p401r.c 
 	$(CC) $(INCLUDES) -E system_msp432p401r.c -o system_msp432p401r.i
 
+else
+# Preprocessor files will be generated for HOST preceeding this comment
+main.i : main.c 
+	gcc $(INCLUDES) -E main.c -o main.i
 
-# Assembly file will be generated preceeding this comment
+memory.i : memory.c 
+	gcc $(INCLUDES) -E memory.c -o memory.i
+
+interrupts_msp432p401r_gcc.i : interrupts_msp432p401r_gcc.i 
+	gcc $(INCLUDES) -E interrupts_msp432p401r_gcc.c -o interrupts_msp432p401r_gcc.i
+
+startup_msp432p401r_gcc.i : startup_msp432p401r_gcc.c 
+	gcc $(INCLUDES) -E startup_msp432p401r_gcc.c -o startup_msp432p401r_gcc.i
+
+system_msp432p401r.i : system_msp432p401r.c 
+	gcc $(INCLUDES) -E system_msp432p401r.c -o system_msp432p401r.i
+endif
+
+ifeq ($(PLATFORM),MSP432)
+# Assembly fileS will be generated for MSP432 preceeding this comment
 main.asm : main.c 
 	$(CC) $(INCLUDES) -S main.c -o main.asm
 
@@ -136,6 +185,24 @@ startup_msp432p401r_gcc.asm : startup_msp432p401r_gcc.c
 
 system_msp432p401r.asm : system_msp432p401r.c 
 	$(CC) $(INCLUDES) -S system_msp432p401r.c -o system_msp432p401r.asm 
+
+else 
+# Assembly files will be generated for HOST preceeding this comment
+main.asm : main.c 
+	gcc $(INCLUDES) -S main.c -o main.asm
+
+memory.asm : memory.c 
+	gcc $(INCLUDES) -S memory.c -o memory.asm 
+
+interrupts_msp432p401r_gcc.asm : interrupts_msp432p401r_gcc.c 
+	gcc $(INCLUDES) -S interrupts_msp432p401r_gcc.c -o interrupts_msp432p401r_gcc.asm 
+
+startup_msp432p401r_gcc.asm : startup_msp432p401r_gcc.c 
+	gcc $(INCLUDES) -S startup_msp432p401r_gcc.c -o startup_msp432p401r_gcc.asm 
+
+system_msp432p401r.asm : system_msp432p401r.c 
+	gcc $(INCLUDES) -S system_msp432p401r.c -o system_msp432p401r.asm
+endif
 
 
 # Dependency files will be generated preceeding this comment
