@@ -186,6 +186,10 @@ startup_msp432p401r_gcc.asm : startup_msp432p401r_gcc.c
 system_msp432p401r.asm : system_msp432p401r.c 
 	$(CC) $(INCLUDES) -S system_msp432p401r.c -o system_msp432p401r.asm 
 
+# This will produce a Assembly for MSP432 c1m2.out executable
+$(BASENAME).asm : $(TARGET)
+	arm-none-eabi-objdump -D $(TARGET) > $(BASENAME).asm
+
 else 
 # Assembly files will be generated for HOST preceeding this comment
 main.asm : main.c 
@@ -202,6 +206,10 @@ startup_msp432p401r_gcc.asm : startup_msp432p401r_gcc.c
 
 system_msp432p401r.asm : system_msp432p401r.c 
 	gcc $(INCLUDES) -S system_msp432p401r.c -o system_msp432p401r.asm
+
+# This will produce a Assembly for HOST c1m2.out executable
+$(BASENAME).asm : $(TARGET)
+	objdump -D $(TARGET) > $(BASENAME).asm 
 endif
 
 
